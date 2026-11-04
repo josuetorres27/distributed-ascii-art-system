@@ -270,3 +270,54 @@ std::string FileSystem::getFigureList() {
   output << "\n";  // Add line break for better readability
   return output.str();  // Return the list of figures
 }
+
+std::vector<std::string> FileSystem::getFigureNames() {
+  std::vector<std::string> names;
+  DirectoryBlock dir;
+  int blockNum = 0;
+
+  while (true) {
+    readBlock(blockNum, reinterpret_cast<char*>(&dir));
+    for (int i = 0; i < DIR_ENTRIES; ++i) {
+      if (dir.entries[i].name[0] != '\0') {
+        names.push_back(std::string(dir.entries[i].name));
+      }
+    }
+    if (dir.nextBlock == 0) break;
+    blockNum = dir.nextBlock;
+  }
+  return names;
+}
+
+/**
+ * Retrieves the full content of a figure from the file system based on its name.
+ * The content is read from multiple data blocks if necessary.
+ *
+ * @param name The name of the figure to retrieve.
+ * @return The content of the figure or a message if the figure is not found.
+ */
+std::string FileSystem::getFigureContent(const std::string& name) {
+  DirectoryBlock dir;
+  int blockNum = 0;
+  std::string output;
+
+  while (true) {
+    readBlock(blockNum, reinterpret_cast<char*>(&dir));
+    for (int i = 0; i < DIR_ENTRIES; ++i) {
+      if (std::strncmp(dir.entries[i].name, name.c_str(), NAME_SIZE) == 0) {
+        int dataBlock = dir.entries[i].dataBlock;
+        char buffer[BLOCK_SIZE];
+        while (true) {
+          readBlock(dataBlock, buffer);
+          output.append(buffer, strnlen(buffer, BLOCK_SIZE));  // Append content
+          if (std::strlen(buffer) < BLOCK_SIZE) break;  // End of data
+          ++dataBlock;
+        }
+        return output;  // Return the figure content
+      }
+    }
+    if (dir.nextBlock == 0) break;  // No more directory blocks
+    blockNum = dir.nextBlock;  // Move to next directory block
+  }
+  return "Figure not found.\n";  // Return error message if figure is not found
+}

@@ -88,7 +88,12 @@ class FileSystem {
    */
   std::string getFigureList();
 
-
+  /**
+   * Retrieves a vector containing all figure names stored on the disk.
+   *
+   * @return A vector of strings with figure names.
+   */
+  std::vector<std::string> getFigureNames();
 
   /**
    * Retrieves the content of a specific figure by its name.
