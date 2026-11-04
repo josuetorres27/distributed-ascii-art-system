@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark">
+  <title>Distributed ASCII Art System // Terminal</title>
+  <style>
+    :root {
+      --bg: #090c0a;
+      --card-bg: #101713;
+      --border: #1b2e22;
+      --text: #00ff66;
+      --text-dim: #00993d;
+      --glow: rgba(0, 255, 102, 0.4);
+      --accent: #5eff99;
+      --crt-opacity: 0.15;
+      --font-mono: ui-monospace, "Cascadia Code", "Fira Code", Menlo, Monaco, Consolas, "Courier New", monospace;
+    }
+
+    [data-theme="amber"] {
+      --bg: #0d0a04;
+      --card-bg: #191307;
+      --border: #38270b;
+      --text: #ffb000;
+      --text-dim: #996a00;
+      --glow: rgba(255, 176, 0, 0.45);
+      --accent: #ffd166;
+      --crt-opacity: 0.12;
+    }
+
+    [data-theme="cyberpunk"] {
+      --bg: #0d0814;
+      --card-bg: #150d21;
+      --border: #3b1854;
+      --text: #00f0ff;
+      --text-dim: #008899;
+      --glow: rgba(0, 240, 255, 0.45);
+      --accent: #ff007f;
+      --crt-opacity: 0.14;
+    }
+
+    [data-theme="monochrome"] {
+      --bg: #121212;
+      --card-bg: #1a1a1a;
+      --border: #2e2e2e;
+      --text: #f0f0f0;
+      --text-dim: #888888;
+      --glow: rgba(255, 255, 255, 0.2);
+      --accent: #00bcd4;
+      --crt-opacity: 0.05;
+    }
+
+    [data-theme="cobalt"] {
+      --bg: #050d1a;
+      --card-bg: #0a1931;
+      --border: #183b6b;
+      --text: #38bdf8;
+      --text-dim: #1e6b9c;
+      --glow: rgba(56, 189, 248, 0.4);
+      --accent: #818cf8;
+      --crt-opacity: 0.12;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-mono);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      position: relative;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    /* CRT Scanlines and curvature */
+    .crt-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 999;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+                  linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+      background-size: 100% 3px, 6px 100%;
+      opacity: var(--crt-opacity);
+      transition: opacity 0.3s;
+    }
+
+    body.no-crt .crt-overlay {
+      display: none;
+    }
+
+    /* Top Navigation Bar */
+    header {
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 0.75rem 1.25rem;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      background-color: var(--text);
+      border-radius: 50%;
+      box-shadow: 0 0 10px var(--text);
+      animation: pulse 2s infinite ease-in-out;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    .brand-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      text-shadow: 0 0 8px var(--glow);
+    }
+
+    .brand-subtitle {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      letter-spacing: 0.05em;
+    }
+
+    .nav-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      background: var(--card-bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 0.4rem 0.75rem;
+      font-family: inherit;
+      font-size: 0.78rem;
+      cursor: pointer;
+      border-radius: 4px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: all 0.15s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .btn:hover {
+      background: var(--border);
+      border-color: var(--text);
+      box-shadow: 0 0 8px var(--glow);
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .btn.active {
+      background: var(--text);
+      color: var(--bg);
+      font-weight: 700;
+      border-color: var(--text);
+      box-shadow: 0 0 12px var(--glow);
+    }
+
+    .select-theme {
+      background: var(--card-bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 0.4rem 0.6rem;
+      font-family: inherit;
+      font-size: 0.78rem;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    /* Main Container */
+    .app-layout {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 310px 1fr;
+      height: calc(100vh - 65px);
+      overflow: hidden;
+    }
+
+    @media (max-width: 900px) {
+      .app-layout {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+    }
+
+    /* Sidebar / Figure Explorer */
+    aside {
+      background: var(--card-bg);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .search-box {
+      padding: 0.9rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .search-input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.5rem 0.75rem;
+      font-family: inherit;
+      font-size: 0.82rem;
+      border-radius: 4px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .search-input:focus {
+      border-color: var(--text);
+      box-shadow: 0 0 8px var(--glow);
+    }
+
+    .filter-tags {
+      display: flex;
+      gap: 0.35rem;
+      flex-wrap: wrap;
+    }
+
+    .tag-btn {
+      font-size: 0.68rem;
+      padding: 0.2rem 0.45rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      border-radius: 3px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .tag-btn.active, .tag-btn:hover {
+      color: var(--text);
+      border-color: var(--text);
+      background: var(--border);
+    }
+
+    .figure-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.6rem;
+      list-style: none;
+    }
+
+    .figure-item {
+      padding: 0.55rem 0.75rem;
+      margin-bottom: 0.3rem;
+      border-radius: 4px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.84rem;
+      transition: all 0.15s ease;
+    }
+
+    .figure-item:hover {
+      background: var(--border);
+      color: var(--text);
+    }
+
+    .figure-item.selected {
+      background: var(--border);
+      border-color: var(--text);
+      color: var(--text);
+      box-shadow: 0 0 10px var(--glow);
+      font-weight: 700;
+    }
+
+    .figure-item .fig-arrow {
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .figure-item.selected .fig-arrow,
+    .figure-item:hover .fig-arrow {
+      opacity: 1;
+    }
+
+    .sidebar-footer {
+      padding: 0.75rem 0.9rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Terminal Viewport / Canvas */
+    main {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      background: var(--bg);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .viewport-toolbar {
+      padding: 0.6rem 1rem;
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 0.8rem;
+    }
+
+    .current-figure-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 700;
+    }
+
+    .stats-badge {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      background: var(--bg);
+      padding: 0.2rem 0.5rem;
+      border-radius: 3px;
+      border: 1px solid var(--border);
+    }
+
+    .action-group {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      flex-wrap: wrap;
+    }
+
+    /* Canvas Viewport */
+    .viewport-canvas {
+      flex: 1;
+      overflow: auto;
+      padding: 1.5rem;
+      display: flex;
+      position: relative;
+      user-select: text;
+    }
+
+    .ascii-wrapper {
+      margin: auto;
+      transform-origin: center top;
+      transition: transform 0.15s ease-out;
+    }
+
+    pre#ascii-display {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      line-height: 1.12;
+      letter-spacing: 0.04em;
+      white-space: pre;
+      color: var(--text);
+      text-shadow: 0 0 6px var(--glow);
+      filter: drop-shadow(0 0 4px var(--glow));
+    }
+
+    /* Cyberpunk gradient mode */
+    [data-theme="cyberpunk"] pre#ascii-display {
+      background: linear-gradient(135deg, #00f0ff 0%, #ff007f 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 0 6px rgba(0, 240, 255, 0.6));
+    }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      background: var(--card-bg);
+      color: var(--text);
+      border: 1px solid var(--text);
+      padding: 0.6rem 1rem;
+      font-size: 0.8rem;
+      border-radius: 4px;
+      box-shadow: 0 0 15px var(--glow);
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.2s ease;
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Typing cursor */
+    .cursor-blink {
+      display: inline-block;
+      width: 8px;
+      height: 13px;
+      background: var(--text);
+      margin-left: 2px;
+      vertical-align: middle;
+      animation: blink 0.8s infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+  </style>
+</head>
+<body data-theme="matrix">
+  <div class="crt-overlay" aria-hidden="true"></div>
+
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <div class="status-dot"></div>
+      <div>
+        <div class="brand-title">Distributed ASCII Art System</div>
+        <div class="brand-subtitle">// Virtual Block File System &bull; Port 1234</div>
+      </div>
+    </div>
+
+    <div class="nav-controls">
+      <!-- Theme Switcher -->
+      <select id="themeSelector" class="select-theme" title="Select Terminal Theme">
+        <option value="matrix">🟢 Matrix Phosphor</option>
+        <option value="amber">🟠 Amber 1982</option>
+        <option value="cyberpunk">🟣 Cyberpunk Neon</option>
+        <option value="cobalt">🔵 Cobalt VT220</option>
+        <option value="monochrome">⚪ Monochrome</option>
+      </select>
+
+      <!-- CRT Effect Toggle -->
+      <button id="toggleCrtBtn" class="btn active" title="Toggle CRT Scanline Effect">
+        CRT: ON
+      </button>
+
+      <!-- Audio Synthesizer Toggle -->
+      <button id="toggleAudioBtn" class="btn" title="Toggle Synthesized Terminal Sounds">
+        🔊 SFX: OFF
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Layout -->
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <aside>
+      <div class="search-box">
+        <input type="text" id="searchInput" class="search-input" placeholder="🔍 Search figures (e.g. spiderman, mario)..." autocomplete="off">
+        <div class="filter-tags">
+          <button class="tag-btn active" data-filter="all">All</button>
+          <button class="tag-btn" data-filter="heroes">Heroes</button>
+          <button class="tag-btn" data-filter="gaming">Gaming</button>
+          <button class="tag-btn" data-filter="tech">Tech</button>
+        </div>
+      </div>
+
+      <ul id="figureList" class="figure-list">
+        <!-- Loaded via JavaScript -->
+        <li style="padding: 1rem; color: var(--text-dim); font-size: 0.8rem;">Loading indexed figures from disk.bin...</li>
+      </ul>
+
+      <div class="sidebar-footer">
+        <span id="diskStats">17 Assets Loaded</span>
+        <span>256B Blocks</span>
+      </div>
+    </aside>
+
+    <!-- Display Viewport -->
+    <main>
+      <div class="viewport-toolbar">
+        <div class="current-figure-badge">
+          <span style="color: var(--text-dim);">&gt;</span>
+          <span id="activeFigName">SELECT A FIGURE</span>
+          <span id="figMeta" class="stats-badge" style="display: none;">0 lines</span>
+        </div>
+
+        <div class="action-group">
+          <!-- Animation Mode -->
+          <button id="toggleAnimBtn" class="btn" title="Toggle Typing Animation">
+            ⚡ Fast Print
+          </button>
+
+          <!-- Zoom Controls -->
+          <button id="zoomOutBtn" class="btn" title="Zoom Out">[-]</button>
+          <button id="zoomResetBtn" class="btn" title="Reset Zoom">100%</button>
+          <button id="zoomInBtn" class="btn" title="Zoom In">[+]</button>
+
+          <!-- Export PNG -->
+          <button id="exportPngBtn" class="btn" title="Render and Download as PNG">
+            📷 Export PNG
+          </button>
+
+          <!-- Copy ASCII -->
+          <button id="copyBtn" class="btn" title="Copy raw ASCII to clipboard">
+            📋 Copy ASCII
+          </button>
+        </div>
+      </div>
+
+      <div class="viewport-canvas" id="canvasContainer">
+        <div class="ascii-wrapper" id="asciiWrapper">
+          <pre id="ascii-display">
+    _______________________________________________________________
+   /                                                               \
+  |    DISTRIBUTED ASCII ART SYSTEM // INTERACTIVE TERMINAL         |
+  |                                                                 |
+  |    * Select any figure on the left panel to load from disk.     |
+  |    * Features: CRT shaders, audio clicks, zoom & PNG export.    |
+  |    * REST API: curl http://localhost:1234/GET/spiderman_1        |
+   \_______________________________________________________________/
+          \
+           \   ^__^
+            \  (oo)\_______
+               (__)\       )\/\
+                   ||----w |
+                   ||     ||
+          </pre>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="toast" class="toast">[COPIED TO CLIPBOARD]</div>
+
+  <script>
+    // State
+    let allFigures = [];
+    let currentFigure = '';
+    let currentRawAscii = '';
+    let zoomLevel = 1.0;
+    let sfxEnabled = false;
+    let animEnabled = false;
+    let currentCategory = 'all';
+    let audioCtx = null;
+    let animationInterval = null;
+
+    // Categories mapping
+    const categories = {
+      heroes: ['batman', 'mcqueen', 'spiderman_1', 'spiderman_2'],
+      gaming: ['charizard', 'gengar', 'goomba', 'jigglypuff', 'mario', 'pikachu', 'yoshi'],
+      tech: ['computer']
+    };
+
+    // DOM Elements
+    const figureListEl = document.getElementById('figureList');
+    const searchInput = document.getElementById('searchInput');
+    const asciiDisplay = document.getElementById('ascii-display');
+    const asciiWrapper = document.getElementById('asciiWrapper');
+    const activeFigName = document.getElementById('activeFigName');
+    const figMeta = document.getElementById('figMeta');
+    const diskStats = document.getElementById('diskStats');
+    const themeSelector = document.getElementById('themeSelector');
+    const toggleCrtBtn = document.getElementById('toggleCrtBtn');
+    const toggleAudioBtn = document.getElementById('toggleAudioBtn');
+    const toggleAnimBtn = document.getElementById('toggleAnimBtn');
+    const zoomInBtn = document.getElementById('zoomInBtn');
+    const zoomOutBtn = document.getElementById('zoomOutBtn');
+    const zoomResetBtn = document.getElementById('zoomResetBtn');
+    const copyBtn = document.getElementById('copyBtn');
+    const exportPngBtn = document.getElementById('exportPngBtn');
+    const toast = document.getElementById('toast');
+
+    // 1. Web Audio API Click Generator
+    function playBeep(freq = 880, duration = 0.02) {
+      if (!sfxEnabled) return;
+      try {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {}
+    }
+
+    // 2. Fetch Figures List from Backend
+    async function init() {
+      try {
+        const res = await fetch('/api/figures');
+        if (res.ok) {
+          allFigures = await res.json();
+        } else {
+          // Fallback static list
+          allFigures = [
+            'batman', 'charizard', 'computer', 'gengar', 'goomba',
+            'jigglypuff', 'mario', 'mcqueen', 'pikachu',
+            'spiderman_1', 'spiderman_2', 'yoshi'
+          ];
+        }
+      } catch (e) {
+        allFigures = [
+          'batman', 'charizard', 'computer', 'gengar', 'goomba',
+          'jigglypuff', 'mario', 'mcqueen', 'pikachu',
+          'spiderman_1', 'spiderman_2', 'yoshi'
+        ];
+      }
+
+      diskStats.textContent = `${allFigures.length} Assets Loaded`;
+      renderList();
+
+      // Check URL search params for direct figure loading (e.g. ?fig=spiderman_1)
+      const urlParams = new URLSearchParams(window.location.search);
+      const requestedFig = urlParams.get('fig') || urlParams.get('figure');
+      if (requestedFig && allFigures.includes(requestedFig)) {
+        loadFigure(requestedFig);
+      } else if (allFigures.length > 0) {
+        loadFigure(allFigures[0]);
+      }
+    }
+
+    // 3. Render Figures List
+    function renderList() {
+      const query = searchInput.value.toLowerCase().trim();
+      const filtered = allFigures.filter(name => {
+        const matchesQuery = name.toLowerCase().includes(query);
+        const matchesCategory = currentCategory === 'all' || (categories[currentCategory] && categories[currentCategory].includes(name));
+        return matchesQuery && matchesCategory;
+      });
+
+      figureListEl.innerHTML = '';
+      if (filtered.length === 0) {
+        figureListEl.innerHTML = `<li style="padding: 1rem; color: var(--text-dim); font-size: 0.8rem;">No assets found.</li>`;
+        return;
+      }
+
+      filtered.forEach(name => {
+        const li = document.createElement('li');
+        li.className = `figure-item ${name === currentFigure ? 'selected' : ''}`;
+        li.innerHTML = `
+          <span>${name}</span>
+          <span class="fig-arrow">&gt;</span>
+        `;
+        li.addEventListener('click', () => {
+          playBeep(440, 0.04);
+          loadFigure(name);
+        });
+        figureListEl.appendChild(li);
+      });
+    }
+
+    // 4. Load Figure Content
+    async function loadFigure(name) {
+      currentFigure = name;
+      activeFigName.textContent = name.toUpperCase();
+      renderList();
+
+      // Update URL query string without reloading
+      const url = new URL(window.location);
+      url.searchParams.set('fig', name);
+      window.history.replaceState({}, '', url);
+
+      try {
+        const res = await fetch(`/GET/${name}`);
+        if (!res.ok) throw new Error('Figure not found');
+        currentRawAscii = await res.text();
+      } catch (err) {
+        currentRawAscii = `[ERROR: Could not load figure '${name}']`;
+      }
+
+      // Metadata calculation
+      const lines = currentRawAscii.split('\n');
+      figMeta.textContent = `${lines.length} lines • ${currentRawAscii.length} chars`;
+      figMeta.style.display = 'inline-block';
+
+      if (animationInterval) clearInterval(animationInterval);
+
+      if (animEnabled) {
+        renderTyping(lines);
+      } else {
+        asciiDisplay.textContent = currentRawAscii;
+        playBeep(660, 0.08);
+      }
+    }
+
+    // 5. Typewriter Animation Mode
+    function renderTyping(lines) {
+      asciiDisplay.textContent = '';
+      let idx = 0;
+      animationInterval = setInterval(() => {
+        if (idx < lines.length) {
+          asciiDisplay.textContent += lines[idx] + '\n';
+          if (idx % 2 === 0) playBeep(300 + (idx * 5) % 600, 0.015);
+          idx++;
+        } else {
+          clearInterval(animationInterval);
+          playBeep(880, 0.06);
+        }
+      }, 20);
+    }
+
+    // 6. Search & Filters
+    searchInput.addEventListener('input', renderList);
+
+    document.querySelectorAll('.tag-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentCategory = btn.dataset.filter;
+        renderList();
+      });
+    });
+
+    // 7. Theme Selector
+    themeSelector.addEventListener('change', (e) => {
+      document.body.setAttribute('data-theme', e.target.value);
+      playBeep(520, 0.05);
+    });
+
+    // 8. CRT Toggle
+    toggleCrtBtn.addEventListener('click', () => {
+      document.body.classList.toggle('no-crt');
+      const isCrt = !document.body.classList.contains('no-crt');
+      toggleCrtBtn.textContent = isCrt ? 'CRT: ON' : 'CRT: OFF';
+      toggleCrtBtn.classList.toggle('active', isCrt);
+      playBeep(isCrt ? 700 : 350, 0.04);
+    });
+
+    // 9. Audio Toggle
+    toggleAudioBtn.addEventListener('click', () => {
+      sfxEnabled = !sfxEnabled;
+      toggleAudioBtn.textContent = sfxEnabled ? '🔊 SFX: ON' : '🔇 SFX: OFF';
+      toggleAudioBtn.classList.toggle('active', sfxEnabled);
+      if (sfxEnabled) playBeep(880, 0.06);
+    });
+
+    // 10. Animation Toggle
+    toggleAnimBtn.addEventListener('click', () => {
+      animEnabled = !animEnabled;
+      toggleAnimBtn.textContent = animEnabled ? '⏳ Animated' : '⚡ Fast Print';
+      toggleAnimBtn.classList.toggle('active', animEnabled);
+      playBeep(600, 0.03);
+    });
+
+    // 11. Zoom Controls
+    function setZoom(val) {
+      zoomLevel = Math.max(0.4, Math.min(2.5, val));
+      asciiWrapper.style.transform = `scale(${zoomLevel})`;
+      zoomResetBtn.textContent = `${Math.round(zoomLevel * 100)}%`;
+    }
+
+    zoomInBtn.addEventListener('click', () => setZoom(zoomLevel + 0.15));
+    zoomOutBtn.addEventListener('click', () => setZoom(zoomLevel - 0.15));
+    zoomResetBtn.addEventListener('click', () => setZoom(1.0));
+
+    // 12. Copy to Clipboard
+    copyBtn.addEventListener('click', async () => {
+      if (!currentRawAscii) return;
+      try {
+        await navigator.clipboard.writeText(currentRawAscii);
+        showToast('📋 ASCII COPIED TO CLIPBOARD');
+        playBeep(980, 0.08);
+      } catch (e) {
+        showToast('ERROR: Unable to copy');
+      }
+    });
+
+    // 13. Export PNG
+    exportPngBtn.addEventListener('click', () => {
+      if (!currentRawAscii) return;
+      playBeep(880, 0.06);
+
+      const lines = currentRawAscii.split('\n');
+      const fontSize = 16;
+      const lineHeight = fontSize * 1.15;
+      const charWidth = fontSize * 0.6;
+
+      let maxCols = 0;
+      lines.forEach(l => { if (l.length > maxCols) maxCols = l.length; });
+
+      const canvas = document.createElement('canvas');
+      const padding = 30;
+      canvas.width = Math.max(400, maxCols * charWidth + padding * 2);
+      canvas.height = lines.length * lineHeight + padding * 2;
+
+      const ctx = canvas.getContext('2d');
+      const computed = getComputedStyle(document.body);
+      const bgColor = computed.getPropertyValue('--bg').trim() || '#0a0e0a';
+      const textColor = computed.getPropertyValue('--text').trim() || '#00ff66';
+
+      // Background
+      ctx.fillStyle = bgColor;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw ASCII text
+      ctx.fillStyle = textColor;
+      ctx.font = `${fontSize}px monospace`;
+      ctx.textBaseline = 'top';
+
+      lines.forEach((line, i) => {
+        ctx.fillText(line, padding, padding + i * lineHeight);
+      });
+
+      // Download
+      const a = document.createElement('a');
+      a.download = `${currentFigure || 'ascii_art'}.png`;
+      a.href = canvas.toDataURL('image/png');
+      a.click();
+      showToast(`📸 EXPORTED ${currentFigure.toUpperCase()}.PNG`);
+    });
+
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2200);
+    }
+
+    // Start app
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
