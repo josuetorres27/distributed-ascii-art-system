@@ -16,7 +16,9 @@ A multi-threaded networked storage and retrieval system implemented in **C++17**
   * Fixed 256-byte block allocation.
   * Directory indexing: directory blocks store metadata (up to 7 file entries of 32-byte names with data block pointers, plus forward pointers for directory chaining).
   * Chained data allocation for arbitrarily large ASCII text files without virtual disk size boundaries.
-* **HTTP/1.1 Compatible Parser:** The server natively understands HTTP requests (`GET /LIST`, `GET /GET/<figure>`), allowing seamless interaction with standard tools like `curl`, `wget`, or web browsers.
+* **HTTP/1.1 Compatible Parser & Interactive Web Terminal:**
+  * When accessed via CLI or `curl`, the server serves raw `text/plain` streams.
+  * When accessed via a web browser at `http://localhost:1234/`, it serves an interactive retro-futuristic CRT Terminal UI with real-time asset search, live typewriter animations, themes (Matrix, Amber, Cyberpunk, Cobalt, Monochrome), audio clicks via Web Audio API, zoom & pan controls, and instant PNG export.
 * **Distributed Protocol Simulation:**
   * Inter-server discovery and proxy routing protocol specification and simulation (`docs/Protocol_Specification.md`, `simulation/`).
 
@@ -64,6 +66,8 @@ distributed-ascii-art-system/
 │   ├── Socket.h / .cc               # Stream socket wrapper
 │   └── VSocket.h / .cc              # Base virtual socket wrapper
 ├── ascii_figures/                   # Repository of ASCII art text assets
+├── web/                             # Interactive CRT Terminal Web UI (HTML5, CSS3, JS)
+│   └── index.html                   # Standalone retro terminal & asset viewer
 ├── docs/                            # Technical guides & documentation
 │   ├── Compilation_Guide.md         # Step-by-step build instructions
 │   ├── Test_Cases.md                # Comprehensive test matrix (CLI & HTTP)
