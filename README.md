@@ -32,7 +32,7 @@ The running system is a single server node. The "distributed" part of the projec
        |       (CLI Client / curl / wget / Web Browser)         |
        +---------------------------+----------------------------+
                                    |
-                         TCP/IP (Port 1234)
+                           TCP/IP (Port 1234)
                                    |
                                    v
        +--------------------------------------------------------+
@@ -70,23 +70,23 @@ The server includes preloaded art assets in `ascii_figures/`, including:
 
 ```text
 distributed-ascii-art-system/
-├── src/                             # Core C++ source files
-│   ├── Client.cc                    # CLI Client implementation
-│   ├── Server.cc                    # Multi-threaded server implementation
-│   ├── FileSystem.h / .cc           # Virtual block-based file system engine
-│   ├── Socket.h / .cc               # Stream socket wrapper
-│   └── VSocket.h / .cc              # Base virtual socket wrapper
-├── ascii_figures/                   # Repository of ASCII art text assets
-├── web/                             # Interactive CRT Terminal Web UI (HTML5, CSS3, JS)
-│   └── index.html                   # Standalone retro terminal & asset viewer
-├── docs/                            # Technical guides & documentation
-│   ├── Compilation_Guide.md         # Step-by-step build instructions
-│   ├── Test_Cases.md                # Manual functional test scenarios (CLI & HTTP)
-│   └── Protocol_Specification.md    # Proxy-to-server protocol design
-├── simulation/                      # Two-thread protocol walkthrough (main.cc, Makefile)
-├── Makefile                         # Build automation script
-├── LICENSE                          # MIT License
-└── README.md                        # Project documentation
+├── src/                          # Core C++ source files
+│   ├── Client.cc                 # CLI Client implementation
+│   ├── Server.cc                 # Multi-threaded server implementation
+│   ├── FileSystem.h / .cc        # Virtual block-based file system engine
+│   ├── Socket.h / .cc            # Stream socket wrapper
+│   └── VSocket.h / .cc           # Base virtual socket wrapper
+├── ascii_figures/                # Repository of ASCII art text assets
+├── web/                          # Interactive CRT Terminal Web UI (HTML5, CSS3, JS)
+│   └── index.html                # Standalone retro terminal & asset viewer
+├── docs/                         # Technical guides & documentation
+│   ├── Compilation_Guide.md      # Step-by-step build instructions
+│   ├── Test_Cases.md             # Manual functional test scenarios (CLI & HTTP)
+│   └── Protocol_Specification.md # Proxy-to-server protocol design
+├── simulation/                   # Two-thread protocol walkthrough (main.cc, Makefile)
+├── Makefile                      # Build automation script
+├── LICENSE                       # MIT License
+└── README.md                     # Project documentation
 ```
 
 ---
