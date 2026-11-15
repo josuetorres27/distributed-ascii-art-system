@@ -50,6 +50,7 @@ void FileSystem::writeBlock(int blockNum, const char* data) {
  * @param buffer The buffer to store the data.
  */
 void FileSystem::readBlock(int blockNum, char* buffer) {
+  std::memset(buffer, 0, BLOCK_SIZE);  // A block past the end of the disk reads as empty
   std::ifstream disk(diskFilename, std::ios::binary);
   disk.seekg(blockNum * BLOCK_SIZE);
   disk.read(buffer, BLOCK_SIZE);
@@ -163,6 +164,9 @@ int FileSystem::appendToDirectory(const std::string& name, int dataStartBlock) {
 /**
  * Stores the content of a figure across multiple blocks of the disk.
  * If the content exceeds the block size, it will be split into multiple blocks.
+ * The last block is always partly empty, so readers know where the figure ends:
+ * content whose size is a multiple of BLOCK_SIZE (or empty content) gets an
+ * extra empty block.
  *
  * @param content The content of the figure to store.
  * @return A vector containing the block indices where the figure data is stored.
@@ -178,6 +182,9 @@ std::vector<int> FileSystem::storeFigureData(const std::string& content) {
     std::memcpy(buffer, content.data() + pos, chunkSize);
     writeBlock(blockIndex, buffer);
     pos += chunkSize;
+  }
+  if (content.size() % BLOCK_SIZE == 0) {
+    blocks.push_back(allocateBlock());  // Empty end-of-figure block
   }
   return blocks;
 }
@@ -250,7 +257,7 @@ std::string FileSystem::getFigureList() {
 
     for (int i = 0; i < DIR_ENTRIES; ++i) {
       if (dir.entries[i].name[0] != '\0') {
-        std::string name(dir.entries[i].name);
+        std::string name(dir.entries[i].name, strnlen(dir.entries[i].name, NAME_SIZE));
         int dataBlock = dir.entries[i].dataBlock;
         int count = 0;
         char buffer[BLOCK_SIZE];
@@ -259,7 +266,7 @@ std::string FileSystem::getFigureList() {
         while (true) {
           readBlock(dataBlock, buffer);
           ++count;
-          if (std::strlen(buffer) < BLOCK_SIZE) break;  // End of data
+          if (strnlen(buffer, BLOCK_SIZE) < BLOCK_SIZE) break;  // End of data
           ++dataBlock;
         }
 
@@ -285,7 +292,7 @@ std::vector<std::string> FileSystem::getFigureNames() {
     readBlock(blockNum, reinterpret_cast<char*>(&dir));
     for (int i = 0; i < DIR_ENTRIES; ++i) {
       if (dir.entries[i].name[0] != '\0') {
-        names.push_back(std::string(dir.entries[i].name));
+        names.push_back(std::string(dir.entries[i].name, strnlen(dir.entries[i].name, NAME_SIZE)));
       }
     }
     if (dir.nextBlock == 0) break;
@@ -314,8 +321,9 @@ std::string FileSystem::getFigureContent(const std::string& name) {
         char buffer[BLOCK_SIZE];
         while (true) {
           readBlock(dataBlock, buffer);
-          output.append(buffer, strnlen(buffer, BLOCK_SIZE));  // Append content
-          if (std::strlen(buffer) < BLOCK_SIZE) break;  // End of data
+          size_t length = strnlen(buffer, BLOCK_SIZE);
+          output.append(buffer, length);  // Append content
+          if (length < BLOCK_SIZE) break;  // End of data
           ++dataBlock;
         }
         return output;  // Return the figure content
