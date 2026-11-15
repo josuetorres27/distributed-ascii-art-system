@@ -17,7 +17,7 @@ The running system is a single server node. The "distributed" part of the projec
 - **Custom Block-Based Virtual File System (`disk.bin`):**
   - Fixed 256-byte blocks.
   - Directory blocks hold 7 entries of 36 bytes each (a 32-byte name plus a `uint32` pointer to the figure's first data block) and a `uint32` pointer to the next directory block (7 × 36 + 4 = 256 bytes). Directory blocks are chained as more figures are added.
-  - Figure content is stored in contiguous 256-byte data blocks, starting at the block referenced by the directory entry. The disk image grows as blocks are allocated.
+  - Figure content is stored in contiguous 256-byte data blocks, starting at the block referenced by the directory entry. The first block that is not completely full marks the end of a figure, so a figure whose size is a multiple of 256 bytes gets an extra empty block. The disk image grows as blocks are allocated.
 - **HTTP/1.1-Compatible Request Handling:** `GET` requests are routed by URL path (see [HTTP Endpoints](#http-endpoints)); any other method returns `400 Bad Request`.
 - **Interactive Web Terminal:** Opening `http://localhost:1234/` in a browser serves a retro CRT terminal UI (see [Web Terminal](#web-terminal)).
 - **Protocol Design and Walkthrough:** A text protocol for server discovery, figure requests and deregistration between servers and routing proxies ([`docs/Protocol_Specification.md`](docs/Protocol_Specification.md)), plus a two-thread walkthrough program in `simulation/` that prints the message sequence. The walkthrough uses `std::mutex` and `std::condition_variable` to coordinate the two threads; it does not open sockets.
@@ -98,7 +98,6 @@ distributed-ascii-art-system/
 - A Linux environment (or WSL on Windows).
 - `g++` with C++17 support.
 - `make`.
-- glibc 2.34 or newer. The root `Makefile` does not pass `-pthread`, which is only safe where `libpthread` is part of `libc`.
 
 Tested environment: Ubuntu 22.04 (WSL 2), g++ 11.4.0, glibc 2.35.
 
@@ -124,7 +123,7 @@ Run the server from the repository root: it opens `ascii_figures/`, `web/index.h
 ./exec/Server
 ```
 
-On launch, the server creates `disk.bin` only if it does not already exist, loads the `.txt` files from `ascii_figures/` (skipping figures already on disk), and listens on port `1234`. To rebuild the disk image from scratch, for example after editing or adding figures, delete it and restart:
+On launch, the server creates `disk.bin` only if it does not already exist, loads the `.txt` files from `ascii_figures/` (skipping figures already on disk, and appending new ones after the last block of the image), and listens on port `1234`. To rebuild the disk image from scratch, for example after editing a figure that is already on disk, delete it and restart:
 
 ```bash
 rm disk.bin
@@ -182,7 +181,7 @@ wget -qO- http://localhost:1234/GET/batman
 
 ### HTTP Endpoints
 
-The server reads a single request, routes `GET` requests by URL path, writes the response and closes the connection (`Connection: close`).
+The server reads a single request, routes `GET` requests by URL path (query strings and fragments are ignored), writes the response and closes the connection (`Connection: close`).
 
 | Path | Response |
 | :--- | :--- |
@@ -199,7 +198,7 @@ Open `http://localhost:1234/` while the server is running. The page (`web/index.
 
 - **Live and Standalone Modes:** Figures are loaded from the C++ server (`/api/figures`, `/GET/<name>`). If the server is unreachable, for example when `web/index.html` is opened directly from disk, the page falls back to a catalog of figures embedded in the file.
 - **Search and Category Filters:** Filter the figure list by name and by category (All, Heroes, Gaming, Tech).
-- **Deep Links:** `?fig=<name>` (or `?figure=<name>`) loads a specific figure when `web/index.html` is opened as a standalone file. The C++ server does not strip query strings, so `http://localhost:1234/?fig=<name>` returns `404 Not Found`.
+- **Deep Links:** `?fig=<name>` (or `?figure=<name>`) loads a specific figure, both from the server (`http://localhost:1234/?fig=batman`) and when `web/index.html` is opened as a standalone file. Selecting a figure updates the link in the address bar.
 - **Five Themes:** Matrix Phosphor, Amber 1982, Cyberpunk Neon, Cobalt VT220 and Monochrome.
 - **Effects:** CRT effect toggle, optional typewriter animation, and optional sound effects synthesized with the Web Audio API.
 - **Zoom Controls:** 40% to 250%.
