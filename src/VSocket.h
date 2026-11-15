@@ -19,7 +19,7 @@ class VSocket {
  public:
   void BuildSocket(char, bool = false);  // Creates the socket (stream/datagram type)
   void BuildSocket(int fd);
-  ~VSocket();                            // Calls Close() to destroy the socket
+  virtual ~VSocket();                    // Calls Close() to destroy the socket
 
   void Close();  // Closes the socket
   int EstablishConnection(const char* address, const char* portOrService);  // Main function

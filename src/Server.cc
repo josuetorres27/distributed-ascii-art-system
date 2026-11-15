@@ -18,6 +18,7 @@
 #include <filesystem>
 #include <algorithm>  // std::remove
 #include <cctype>     // std::isspace
+#include <csignal>    // std::signal, SIGPIPE
 #include <cstdint>
 #include <vector>
 #include "FileSystem.h"
@@ -28,15 +29,30 @@
 #define BUFSIZE 4096
 
 /**
- * Handles a client request in a separate thread.
- * Parses the HTTP request and routes to web UI, JSON API, raw list, or figure content.
+ * Writes the whole buffer to the socket, retrying after partial writes.
+ *
+ * @param client The client socket
+ * @param data The bytes to send
+ */
+void writeAll(VSocket *client, const std::string& data) {
+  size_t sent = 0;
+  while (sent < data.size()) {
+    size_t n = client->Write(data.data() + sent, data.size() - sent);
+    if (n == 0) break;
+    sent += n;
+  }
+}
+
+/**
+ * Reads one HTTP request, routes it to the web UI, JSON API, raw list or
+ * figure content, and writes the response.
  *
  * @param client The client socket
  * @param fs Reference to the FileSystem instance
  */
-void task(VSocket *client, FileSystem& fs) {
+void handleRequest(VSocket *client, FileSystem& fs) {
   char buffer[BUFSIZE] = {};
-  client->Read(buffer, BUFSIZE);  // Read incoming HTTP request
+  client->Read(buffer, BUFSIZE - 1);  // Read incoming HTTP request (keeps a final '\0')
   std::string request(buffer);
 
   std::string response;
@@ -110,8 +126,23 @@ void task(VSocket *client, FileSystem& fs) {
     response = "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\nInvalid command";
   }
 
-  client->Write(response.c_str(), response.size());
-  client->Close();
+  writeAll(client, response);
+}
+
+/**
+ * Handles a client connection in a separate thread and closes it afterwards.
+ *
+ * @param client The client socket
+ * @param fs Reference to the FileSystem instance
+ */
+void task(VSocket *client, FileSystem& fs) {
+  try {
+    handleRequest(client, fs);
+  } catch (const std::exception& e) {
+    // A failed read or write affects only this connection, not the server
+    std::cerr << "Request failed: " << e.what() << "\n";
+  }
+  delete client;  // Closes the connection
 }
 
 /**
@@ -122,6 +153,9 @@ void task(VSocket *client, FileSystem& fs) {
  * @return Exit status
  */
 int main() {
+  // A client that disconnects early must not kill the server with SIGPIPE
+  std::signal(SIGPIPE, SIG_IGN);
+
   FileSystem fs("disk.bin");
 
   int figureCount = fs.countFigures("ascii_figures");
