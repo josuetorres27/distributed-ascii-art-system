@@ -52,6 +52,10 @@ void task(VSocket *client, FileSystem& fs) {
       url.erase(std::remove(url.begin(), url.end(), '\r'), url.end());
       url.erase(std::remove(url.begin(), url.end(), '\n'), url.end());
 
+      // Route by path only: drop the query string and fragment (e.g. /?fig=<name>,
+      // which the web terminal reads on the client side)
+      url = url.substr(0, url.find_first_of("?#"));
+
       // Route 1: Web UI Terminal
       if (url.empty() || url == "/" || url == "/index.html") {
         std::ifstream file("web/index.html");
