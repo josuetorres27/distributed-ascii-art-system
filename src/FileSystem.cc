@@ -19,11 +19,16 @@ namespace fs = std::filesystem;
 
 /**
  * Constructor for the FileSystem class, initializes the disk filename.
+ * If the disk image already exists, new blocks are allocated after its last block.
  *
  * @param diskFilename The filename of the disk (defaults to "disk.bin").
  */
 FileSystem::FileSystem(const std::string& diskFilename)
-  : diskFilename(diskFilename) {}
+  : diskFilename(diskFilename) {
+  if (fs::exists(diskFilename)) {
+    nextFreeBlock = getBlockCount();
+  }
+}
 
 /**
  * Writes a block of data to the disk at a specified block number.
