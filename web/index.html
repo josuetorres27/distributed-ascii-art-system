@@ -465,11 +465,11 @@
     <div class="nav-controls">
       <!-- Theme Switcher -->
       <select id="themeSelector" class="select-theme" title="Select Terminal Theme">
-        <option value="matrix">🟢 Matrix Phosphor</option>
-        <option value="amber">🟠 Amber 1982</option>
-        <option value="cyberpunk">🟣 Cyberpunk Neon</option>
-        <option value="cobalt">🔵 Cobalt VT220</option>
-        <option value="monochrome">⚪ Monochrome</option>
+        <option value="matrix">Matrix Phosphor</option>
+        <option value="amber">Amber 1982</option>
+        <option value="cyberpunk">Cyberpunk Neon</option>
+        <option value="cobalt">Cobalt VT220</option>
+        <option value="monochrome">Monochrome</option>
       </select>
 
       <!-- CRT Effect Toggle -->
@@ -479,7 +479,7 @@
 
       <!-- Audio Synthesizer Toggle -->
       <button id="toggleAudioBtn" class="btn" title="Toggle Synthesized Terminal Sounds">
-        🔊 SFX: OFF
+        SFX: OFF
       </button>
     </div>
   </header>
@@ -489,7 +489,7 @@
     <!-- Sidebar -->
     <aside>
       <div class="search-box">
-        <input type="text" id="searchInput" class="search-input" placeholder="🔍 Search figures (e.g. spiderman, mario)..." autocomplete="off">
+        <input type="text" id="searchInput" class="search-input" placeholder="Search figures (e.g. spiderman, mario)..." autocomplete="off">
         <div class="filter-tags">
           <button class="tag-btn active" data-filter="all">All</button>
           <button class="tag-btn" data-filter="heroes">Heroes</button>
@@ -521,7 +521,7 @@
         <div class="action-group">
           <!-- Animation Mode -->
           <button id="toggleAnimBtn" class="btn" title="Toggle Typing Animation">
-            ⚡ Fast Print
+            Fast Print
           </button>
 
           <!-- Zoom Controls -->
@@ -531,12 +531,12 @@
 
           <!-- Export PNG -->
           <button id="exportPngBtn" class="btn" title="Render and Download as PNG">
-            📷 Export PNG
+            Export PNG
           </button>
 
           <!-- Copy ASCII -->
           <button id="copyBtn" class="btn" title="Copy raw ASCII to clipboard">
-            📋 Copy ASCII
+            Copy ASCII
           </button>
         </div>
       </div>
@@ -803,7 +803,7 @@
     // 9. Audio Toggle
     toggleAudioBtn.addEventListener('click', () => {
       sfxEnabled = !sfxEnabled;
-      toggleAudioBtn.textContent = sfxEnabled ? '🔊 SFX: ON' : '🔇 SFX: OFF';
+      toggleAudioBtn.textContent = sfxEnabled ? 'SFX: ON' : 'SFX: OFF';
       toggleAudioBtn.classList.toggle('active', sfxEnabled);
       if (sfxEnabled) playBeep(880, 0.06);
     });
@@ -811,7 +811,7 @@
     // 10. Animation Toggle
     toggleAnimBtn.addEventListener('click', () => {
       animEnabled = !animEnabled;
-      toggleAnimBtn.textContent = animEnabled ? '⏳ Animated' : '⚡ Fast Print';
+      toggleAnimBtn.textContent = animEnabled ? 'Animated' : 'Fast Print';
       toggleAnimBtn.classList.toggle('active', animEnabled);
       playBeep(600, 0.03);
     });
@@ -832,7 +832,7 @@
       if (!currentRawAscii) return;
       try {
         await navigator.clipboard.writeText(currentRawAscii);
-        showToast('📋 ASCII COPIED TO CLIPBOARD');
+        showToast('ASCII COPIED TO CLIPBOARD');
         playBeep(980, 0.08);
       } catch (e) {
         showToast('ERROR: Unable to copy');
@@ -880,7 +880,7 @@
       a.download = `${currentFigure || 'ascii_art'}.png`;
       a.href = canvas.toDataURL('image/png');
       a.click();
-      showToast(`📸 EXPORTED ${currentFigure.toUpperCase()}.PNG`);
+      showToast(`EXPORTED ${currentFigure.toUpperCase()}.PNG`);
     });
 
     function showToast(msg) {
